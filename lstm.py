@@ -8,11 +8,16 @@ import torch
 import matplotlib.pyplot as plt
 import os
 
+import emd
+
+# 貌似无效的显卡加速，后面可能要研究一下
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
-epoch = 100
 
-def load_data(window, filename='data.xlsx', sheetbook='Sheet2'):
+
+
+# 从文件中加载数据
+def load_data(window, filename='data.xlsx', sheetbook='Sheet2', emdsign=False):
     workbook = openpyxl.load_workbook(filename)
     sheet = workbook[sheetbook]
 
@@ -55,8 +60,21 @@ def load_data(window, filename='data.xlsx', sheetbook='Sheet2'):
     for i in range(len(dy)):
         ndy.append(dy[i] / maxdy)
 
-    return torch.DoubleTensor([dy, ndy, y, ny]).transpose(0, 1).reshape(-1, window, 4), torch.DoubleTensor(y).reshape(-1, window)
+    # 这样的emd还不是很完美的emd，其实应该在划分数据集之前分解，后续再想办法吧
+    if emdsign:
+        t, s = emd.define_signal(y)
+        y = emd.remove_IMF1(t, s)
+        # emd.draw_new_signal(t, s, y)
 
+    final_x = torch.DoubleTensor([dy, ndy, y, ny]).transpose(0, 1).reshape(-1, window, 4)
+    final_y = torch.DoubleTensor(y).reshape(-1, window)
+
+    return final_x, final_y
+
+
+
+
+# 进行按window合并
 def merge_data(x, y, window, encoder_len=1):
     print(x.shape, y.shape)
     xx = []
@@ -71,11 +89,19 @@ Todo:
     a dataloader that can load data automatically rather than split_data
 '''
 
+
+
+
+# 按数据集，验证集，测试集划分
 def split_data(x, y, train_len, test_len):
     print(x.shape, y.shape)
     return x[:train_len, :, :].numpy(), y[:train_len, :].numpy(), x[train_len:-test_len, :, :].numpy(), y[train_len:-test_len, :].numpy(), x[-test_len:, :, :].numpy(), y[-test_len:, :].numpy()
 
-def train_lstm(x_train, y_train, x_val, y_val, window):
+
+
+
+# 训练
+def train_lstm(x_train, y_train, x_val, y_val, window, epoch):
     model = Sequential()
     model.add(LSTM(25, dropout=0.1, input_shape=(x_train.shape[1], x_train.shape[2]), return_sequences=True))
     model.add(Dense(25))
@@ -91,6 +117,10 @@ def train_lstm(x_train, y_train, x_val, y_val, window):
 
     return model
 
+
+
+
+# 绘制结果
 def plt_pic(yt, yp):
     yyt = []
     yyp = []
@@ -112,21 +142,28 @@ def plt_pic(yt, yp):
     plt.plot(x, yyp)
     plt.show()
 
+
+
+
+
 if __name__ == "__main__":
+    # 定义基本参数
     window = 96
     encoder_len = 10
-
+    epoch = 100
     train_len = 366 * 96 // window
     test_len = 2 * 96 // window
 
-    x, y = load_data(window=window)
+    x, y = load_data(window=window, emdsign=True)
+    
     x, y = merge_data(x=x, y=y, window=window, encoder_len=encoder_len)
 
     x_train, y_train, x_val, y_val, x_test, y_test = split_data(x=x, y=y, train_len=train_len, test_len=test_len)
 
     print(x_train.shape, y_train.shape, x_val.shape, y_val.shape, x_test.shape, y_test.shape)
 
-    model = train_lstm(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, window=window)
+    model = train_lstm(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, window=window, epoch=epoch)
 
     y_p = model.predict(x=x_test)
     plt_pic(y_p, y_test)
+    
