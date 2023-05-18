@@ -60,4 +60,4 @@ def draw_new_signal(t, s, ns):
 if __name__ == '__main__':
     t, s = define_signal([1, 2, 5, 12, 1, 9])
     IMF = execute_EMD_on_signal(t, s)
-    draw_EMD(t, s, IMF)
+    
