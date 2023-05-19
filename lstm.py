@@ -65,6 +65,8 @@ def load_data(window, filename='data.xlsx', sheetbook='Sheet2', emdsign=False):
         t, s = emd.define_signal(y)
         fy = emd.remove_IMF1(t, s)
         # emd.draw_new_signal(t, s, y)
+    else:
+        fy = y
 
     final_x = torch.DoubleTensor([dy, ndy, y, ny]).transpose(0, 1).reshape(-1, window, 4)
     final_y = torch.DoubleTensor(fy).reshape(-1, window)
@@ -155,7 +157,7 @@ if __name__ == "__main__":
     train_len = 366 * 96 // window
     test_len = 2 * 96 // window
 
-    x, fy, ty = load_data(window=window, emdsign=True)
+    x, fy, ty = load_data(window=window, emdsign=False)
     
     x, fy, ty = merge_data(x=x, fy=fy, ty=ty, window=window, encoder_len=encoder_len)
 
