@@ -10,9 +10,6 @@ import os
 
 import emd
 
-# 貌似无效的显卡加速，后面可能要研究一下
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
-
 
 
 
